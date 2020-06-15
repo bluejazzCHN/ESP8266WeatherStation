@@ -26,7 +26,7 @@ RtcDateTime now = Rtc.GetDateTime();
 if (now < compiled)
 {
     Serial.println("RTC is older than compile time!  (Updating DateTime)");
-    Rtc.SetDateTime(compiled);    //3.  Just only when gettime < compiled time , set compiled time to rtc hareware
+    Rtc.SetDateTime(compiled);    
 }
 ```
 + 4.Get now time

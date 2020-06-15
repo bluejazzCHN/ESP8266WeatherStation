@@ -20,7 +20,7 @@ Rtc.Begin();
 ``` c++
 RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__)
 ```
-+ 3.Just only when gettime < compiled time , set compiled time to rtc hareware
++ 3.Just only when get time < compiled time , set compiled time to rtc hareware
 ``` c++
 RtcDateTime now = Rtc.GetDateTime();
 if (now < compiled)
@@ -29,7 +29,7 @@ if (now < compiled)
     Rtc.SetDateTime(compiled);    
 }
 ```
-+ 4.Get now time
++ 4.Get current time
 ``` c++
 RtcDateTime now = Rtc.GetDateTime();
 ```

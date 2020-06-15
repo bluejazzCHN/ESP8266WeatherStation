@@ -7,3 +7,8 @@ This demo is using ESP8266 controller with DHT11 and oled 1306 128*64 to build a
  *    DHT11 Driver: DHT sensor library by Adafruit      One wire mode connected to IO14
  *    RTC Driver:                                       Three wire mode connected to IO12, IO13, IO15
  * ![avatar](https://github.com/bluejazzCHN/ESP8266WeatherStation/blob/master/schematic.png)
+
+
+## Contact Info
+
+[BluejazzCHN:](https://github.com/bluejazzCHN) songjiangzhang@hotmail.com

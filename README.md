@@ -8,6 +8,34 @@ This demo is using ESP8266 controller with DHT11 and oled 1306 128*64 to build a
  *    RTC Driver:                                       Three wire mode connected to IO12, IO13, IO15
  * ![avatar](https://github.com/bluejazzCHN/ESP8266WeatherStation/blob/master/schematic.png)
 
+## RTC usage
+
++ 1.RTC hardware init
+``` c++
+ThreeWire myWire(13, 15, 12); // IO, SCLK, CE
+RtcDS1302<ThreeWire> Rtc(myWire);
+Rtc.Begin();
+```
++ 2.Get RTC inital time
+``` c++
+RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__)
+```
++ 3.Just only when gettime < compiled time , set compiled time to rtc hareware
+``` c++
+RtcDateTime now = Rtc.GetDateTime();
+if (now < compiled)
+{
+    Serial.println("RTC is older than compile time!  (Updating DateTime)");
+    Rtc.SetDateTime(compiled);    //3.  Just only when gettime < compiled time , set compiled time to rtc hareware
+}
+```
++ 4.Get now time
+``` c++
+RtcDateTime now = Rtc.GetDateTime();
+```
+
+## SSD1306 usage
+
 
 ## Contact Info
 

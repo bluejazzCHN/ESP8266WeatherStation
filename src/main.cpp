@@ -141,10 +141,10 @@ void printDateTime(const RtcDateTime &dt)
 // SH1106Brzo  display(0x3c, D3, D5);
 
 // Initialize the OLED display using Wire library
-SSD1306Wire display(0x3c, 4, 5);
+SSD1306Wire display(0x3c, 4, 5);    //1. oled hardware display communication init
 // SH1106 display(0x3c, D3, D5);
 
-OLEDDisplayUi ui(&display);
+OLEDDisplayUi ui(&display);        // 2. oled display ui init with display
 
 int screenW = 128;
 int screenH = 64;
@@ -166,14 +166,14 @@ String twoDigits(int digits)
   }
 }
 
-void weatherStationOverlay(OLEDDisplay *display, OLEDDisplayUiState *state)
+void weatherStationOverlay(OLEDDisplay *display, OLEDDisplayUiState *state)   //3. UI Overlay is on the top of all frames
 {
   display->setTextAlignment(TEXT_ALIGN_LEFT);
   display->setFont(ArialMT_Plain_10);
   display->drawString(0, 0, "Weather Station");
 }
 
-void analogClockFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y)
+void analogClockFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y)  // 4. UI frames that constitute UI
 {
   //  ui.disableIndicator();
   // Draw the clock face
@@ -242,13 +242,13 @@ void tempHumiFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, i
 // This array keeps function pointers to all frames
 // frames are the single views that slide in
 // FrameCallback frames[] = {analogClockFrame, digitalClockFrame, tempHumiFrame};
-FrameCallback frames[] = {digitalClockFrame, tempHumiFrame};
+FrameCallback frames[] = {digitalClockFrame, tempHumiFrame};      //5. frame collection
 
 // how many frames are there?
 int frameCount = 2;
 
 // Overlays are statically drawn on top of a frame eg. a clock
-OverlayCallback overlays[] = {weatherStationOverlay};
+OverlayCallback overlays[] = {weatherStationOverlay};           //6. overlay collection
 int overlaysCount = 1;
 
 void setup()
@@ -260,7 +260,7 @@ void setup()
   // The ESP is capable of rendering 60fps in 80Mhz mode
   // but that won't give you much time for anything else
   // run it in 160Mhz mode or just set it to 30 fps
-  ui.setTargetFPS(60);
+  ui.setTargetFPS(60);  //7. ui init 
 
   // Customize the active and inactive symbol
   // ui.setActiveSymbol(activeSymbol);

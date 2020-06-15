@@ -15,7 +15,9 @@
 
 // Include the correct display library
 // For a connection via I2C using Wire include
-#include <Wire.h>        // Only needed for Arduino 1.6.5 and earlier
+
+#include <Wire.h> // Only needed for Arduino 1.6.5 and earlier
+
 #include "SSD1306Wire.h" // legacy include: `#include "SSD1306.h"`
 // or #include "SH1106Wire.h", legacy include: `#include "SH1106.h"`
 // For a connection via I2C using brzo_i2c (must be installed) include
@@ -37,28 +39,55 @@ void printDateTime(const RtcDateTime &dt);
 DHT dht;
 
 // ======RTC functions=======
+// RTC init
 ThreeWire myWire(13, 15, 12); // IO, SCLK, CE
 RtcDS1302<ThreeWire> Rtc(myWire);
 
+// RTC adjust: compare RTC time and compile time
 void RTCAdjust()
 {
-  RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
+  Serial.print("compiled: ");
+  Serial.print(__DATE__);
+  Serial.println(__TIME__);
+
+  Rtc.Begin();   //1. init RTC
+
+  RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__); //2. Get compile time that will be stored in RTC harware.
   printDateTime(compiled);
   Serial.println();
+
   if (!Rtc.IsDateTimeValid())
   {
+    // Common Causes:
+    //    1) first time you ran and the device wasn't running yet
+    //    2) the battery on the device is low or even missing
+
     Serial.println("RTC lost confidence in the DateTime!");
-    Rtc.SetDateTime(compiled);
+    Rtc.SetDateTime(compiled);          
   }
+
+  if (Rtc.GetIsWriteProtected())
+  {
+    Serial.println("RTC was write protected, enabling writing now");
+    Rtc.SetIsWriteProtected(false);
+  }
+
+  if (!Rtc.GetIsRunning())
+  {
+    Serial.println("RTC was not actively running, starting now");
+    Rtc.SetIsRunning(true);
+  }
+
   RtcDateTime now = Rtc.GetDateTime();
   if (now < compiled)
   {
     Serial.println("RTC is older than compile time!  (Updating DateTime)");
-    Rtc.SetDateTime(compiled);
+    Rtc.SetDateTime(compiled);    //3.  Just only when gettime < compiled time , set compiled time to rtc hareware
   }
   else if (now > compiled)
   {
     Serial.println("RTC is newer than compile time. (this is expected)");
+    printDateTime(now);
   }
   else if (now == compiled)
   {
@@ -66,13 +95,14 @@ void RTCAdjust()
   }
 }
 
+//RTC get time now
 RtcDateTime timeNow()
 {
   RtcDateTime now = Rtc.GetDateTime();
   // printDateTime(now);
   return now;
 }
-
+//RTC time show
 void printDateTime(const RtcDateTime &dt)
 {
   char datestring[20];
@@ -136,8 +166,11 @@ String twoDigits(int digits)
   }
 }
 
-void clockOverlay(OLEDDisplay *display, OLEDDisplayUiState *state)
+void weatherStationOverlay(OLEDDisplay *display, OLEDDisplayUiState *state)
 {
+  display->setTextAlignment(TEXT_ALIGN_LEFT);
+  display->setFont(ArialMT_Plain_10);
+  display->drawString(0, 0, "Weather Station");
 }
 
 void analogClockFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y)
@@ -183,7 +216,8 @@ void analogClockFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x
 void digitalClockFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y)
 {
   // RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
-  RtcDateTime compiled = timeNow();
+  RtcDateTime compiled = Rtc.GetDateTime(); //timeNow();
+  // String timenow = String(hour()) + ":" + twoDigits(minute()) + ":" + twoDigits(second());
 
   String timenow = String(compiled.Hour()) + ":" + twoDigits(compiled.Minute()) + ":" + twoDigits(compiled.Second());
   String daynow = String(compiled.Year()) + "-" + String(compiled.Month()) + "-" + String(compiled.Day());
@@ -214,7 +248,7 @@ FrameCallback frames[] = {digitalClockFrame, tempHumiFrame};
 int frameCount = 2;
 
 // Overlays are statically drawn on top of a frame eg. a clock
-OverlayCallback overlays[] = {clockOverlay};
+OverlayCallback overlays[] = {weatherStationOverlay};
 int overlaysCount = 1;
 
 void setup()
@@ -222,7 +256,6 @@ void setup()
   Serial.begin(9600);
   Serial.println();
   dht.setup(14);
-  Rtc.Begin();
   RTCAdjust();
   // The ESP is capable of rendering 60fps in 80Mhz mode
   // but that won't give you much time for anything else

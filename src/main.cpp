@@ -9,34 +9,40 @@
 #include <Arduino.h>
 #include <TimeLib.h>
 #include "DHT.h"
-
 #include <ThreeWire.h>
 #include <RtcDS1302.h>
-
-// Include the correct display library
-// For a connection via I2C using Wire include
-
-#include <Wire.h> // Only needed for Arduino 1.6.5 and earlier
-
+#include <Wire.h>        // Only needed for Arduino 1.6.5 and earlier
 #include "SSD1306Wire.h" // legacy include: `#include "SSD1306.h"`
-// or #include "SH1106Wire.h", legacy include: `#include "SH1106.h"`
-// For a connection via I2C using brzo_i2c (must be installed) include
-// #include <brzo_i2c.h> // Only needed for Arduino 1.6.5 and earlier
-// #include "SSD1306Brzo.h"
-// #include "SH1106Brzo.h"
-// For a connection via SPI include
-// #include <SPI.h> // Only needed for Arduino 1.6.5 and earlier
-// #include "SSD1306Spi.h"
-// #include "SH1106SPi.h"
-
-// Include the UI lib
 #include "OLEDDisplayUi.h"
 
-void printDateTime(const RtcDateTime &dt);
+#define BLINKER_PRINT Serial
+#define BLINKER_WIFI
 
+#include <Blinker.h>
+
+void printDateTime(const RtcDateTime &dt);
+void LED_UI_init();
+void LED_Run();
 // Include custom images
 // #include "images.h"
 DHT dht;
+//blinker init
+char auth[] = "14442f9e2dab"; //上一步中在app中获取到的Secret Key
+char ssid[] = "ZSJ_HOME";     //你的WiFi热点名称
+char pswd[] = "QQqq11!!";     //你的WiFi密码
+
+	
+float humi_read = 0, temp_read = 0;
+
+BlinkerNumber HUMI("humi");
+BlinkerNumber TEMP("temp");
+
+void heartbeat()
+{
+    HUMI.print(humi_read);
+    TEMP.print(temp_read);
+}
+
 
 // ======RTC functions=======
 // RTC init
@@ -49,21 +55,17 @@ void RTCAdjust()
   Serial.print("compiled: ");
   Serial.print(__DATE__);
   Serial.println(__TIME__);
-
-  Rtc.Begin();   //1. init RTC
-
+  Rtc.Begin();                                            //1. init RTC
   RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__); //2. Get compile time that will be stored in RTC harware.
   printDateTime(compiled);
   Serial.println();
-
   if (!Rtc.IsDateTimeValid())
   {
     // Common Causes:
     //    1) first time you ran and the device wasn't running yet
     //    2) the battery on the device is low or even missing
-
     Serial.println("RTC lost confidence in the DateTime!");
-    Rtc.SetDateTime(compiled);          
+    Rtc.SetDateTime(compiled);
   }
 
   if (Rtc.GetIsWriteProtected())
@@ -82,7 +84,7 @@ void RTCAdjust()
   if (now < compiled)
   {
     Serial.println("RTC is older than compile time!  (Updating DateTime)");
-    Rtc.SetDateTime(compiled);    //3.  Just only when gettime < compiled time , set compiled time to rtc hareware
+    Rtc.SetDateTime(compiled); //3.  Just only when gettime < compiled time , set compiled time to rtc hareware
   }
   else if (now > compiled)
   {
@@ -141,10 +143,10 @@ void printDateTime(const RtcDateTime &dt)
 // SH1106Brzo  display(0x3c, D3, D5);
 
 // Initialize the OLED display using Wire library
-SSD1306Wire display(0x3c, 4, 5);    //1. oled hardware display communication init
+SSD1306Wire display(0x3c, 4, 5); //1. oled hardware display communication init
 // SH1106 display(0x3c, D3, D5);
 
-OLEDDisplayUi ui(&display);        // 2. oled display ui init with display
+OLEDDisplayUi ui(&display); // 2. oled display ui init with display
 
 int screenW = 128;
 int screenH = 64;
@@ -166,14 +168,14 @@ String twoDigits(int digits)
   }
 }
 
-void weatherStationOverlay(OLEDDisplay *display, OLEDDisplayUiState *state)   //3. UI Overlay is on the top of all frames
+void weatherStationOverlay(OLEDDisplay *display, OLEDDisplayUiState *state) //3. UI Overlay is on the top of all frames
 {
   display->setTextAlignment(TEXT_ALIGN_LEFT);
   display->setFont(ArialMT_Plain_10);
   display->drawString(0, 0, "Weather Station");
 }
 
-void analogClockFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y)  // 4. UI frames that constitute UI
+void analogClockFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y) // 4. UI frames that constitute UI
 {
   //  ui.disableIndicator();
   // Draw the clock face
@@ -229,26 +231,27 @@ void digitalClockFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t 
 
 void tempHumiFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y)
 {
-  String temp = "Temp:" + String(dht.getTemperature());
-  String humi = "Humi:" + String(dht.getHumidity());
+  temp_read=dht.getTemperature();
+  humi_read=dht.getHumidity();
+  String temp = "Temp:" + String(temp_read);
+  String humi = "Humi:" + String(humi_read);
   display->setTextAlignment(TEXT_ALIGN_CENTER);
   display->setFont(ArialMT_Plain_16);
   display->drawString(clockCenterX + x, clockCenterY + y, temp);
   display->drawString(clockCenterX + x, clockCenterY + y - 24, humi);
-
   delay(dht.getMinimumSamplingPeriod());
 }
 
 // This array keeps function pointers to all frames
 // frames are the single views that slide in
 // FrameCallback frames[] = {analogClockFrame, digitalClockFrame, tempHumiFrame};
-FrameCallback frames[] = {digitalClockFrame, tempHumiFrame};      //5. frame collection
+FrameCallback frames[] = {digitalClockFrame, tempHumiFrame}; //5. frame collection
 
 // how many frames are there?
 int frameCount = 2;
 
 // Overlays are statically drawn on top of a frame eg. a clock
-OverlayCallback overlays[] = {weatherStationOverlay};           //6. overlay collection
+OverlayCallback overlays[] = {weatherStationOverlay}; //6. overlay collection
 int overlaysCount = 1;
 
 void setup()
@@ -256,11 +259,39 @@ void setup()
   Serial.begin(9600);
   Serial.println();
   dht.setup(14);
+
+#if defined(BLINKER_PRINT)
+  BLINKER_DEBUG.stream(BLINKER_PRINT);
+#endif
+
+  // 初始化blinker
+  Blinker.begin(auth, ssid, pswd);
+  Blinker.attachHeartbeat(heartbeat);
   RTCAdjust();
-  // The ESP is capable of rendering 60fps in 80Mhz mode
+  LED_UI_init();
+
+  display.flipScreenVertically();
+
+  unsigned long secsSinceStart = millis();
+  // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
+  const unsigned long seventyYears = 2208988800UL;
+  // subtract seventy years:
+  unsigned long epoch = secsSinceStart - seventyYears * SECS_PER_HOUR;
+  setTime(epoch);
+}
+
+
+void loop()
+{
+  Blinker.run();
+  LED_Run();
+}
+
+void LED_UI_init(){
+    // The ESP is capable of rendering 60fps in 80Mhz mode
   // but that won't give you much time for anything else
   // run it in 160Mhz mode or just set it to 30 fps
-  ui.setTargetFPS(60);  //7. ui init 
+  ui.setTargetFPS(60); //7. ui init
 
   // Customize the active and inactive symbol
   // ui.setActiveSymbol(activeSymbol);
@@ -286,18 +317,9 @@ void setup()
   // Initialising the UI will init the display too.
   ui.init();
 
-  display.flipScreenVertically();
-
-  unsigned long secsSinceStart = millis();
-  // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
-  const unsigned long seventyYears = 2208988800UL;
-  // subtract seventy years:
-  unsigned long epoch = secsSinceStart - seventyYears * SECS_PER_HOUR;
-  setTime(epoch);
 }
 
-void loop()
-{
+void LED_Run(){
   int remainingTimeBudget = ui.update();
 
   if (remainingTimeBudget > 0)
